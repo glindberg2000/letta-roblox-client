@@ -14,12 +14,12 @@ git+https://github.com/your-org/letta-roblox-client.git@main
 pip install git+https://github.com/your-org/letta-roblox-client.git@main
 ```
 
-## Usage Example
+## Quick Start
 
 ```python
 from letta_roblox.client import LettaRobloxClient
 
-# Initialize client (point to your Letta server)
+# Initialize client
 client = LettaRobloxClient("http://your-letta-server:8283")
 
 # Create merchant NPC
@@ -45,12 +45,9 @@ client.update_memory(agent['id'], {
 client.delete_agent(agent['id'])
 ```
 
-## Memory System
-NPCs maintain two memory blocks:
-- `human`: Context about the player
-- `persona`: NPC's personality and role
-
-Memory updates affect NPC behavior in real-time, allowing dynamic personality changes.
+## Documentation
+- [Integration Guide](src/docs/letta_integration.md) - Detailed API usage
+- [Developer Notes](src/docs/NOTES_TO_DEVS.md) - Implementation details
 
 ## Development
 
@@ -61,5 +58,3 @@ cd letta-roblox-client
 pip install -e .
 pytest -sv  # Run tests
 ```
-
-See [Notes for Developers](src/docs/NOTES_TO_DEVS.md) for implementation details.
