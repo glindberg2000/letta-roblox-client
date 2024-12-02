@@ -16,7 +16,21 @@ class LettaRobloxClient:
         self.headers = headers or {'Content-Type': 'application/json'}
 
     def create_agent(self, npc_type: str, initial_memory: Optional[Dict] = None) -> Dict:
-        """Create a new NPC agent."""
+        """Create a new NPC agent.
+        
+        Args:
+            npc_type: Type of NPC (e.g. "merchant", "guard")
+            initial_memory: Optional initial memory blocks
+            
+        Example:
+            agent = client.create_agent(
+                npc_type="merchant",
+                initial_memory={
+                    "human": "I am a new player who only has basic items.",
+                    "persona": "I am a merchant who specializes in helping new players."
+                }
+            )
+        """
         memory = initial_memory or {
             "human": "New player",
             "persona": f"I am a {npc_type} NPC"
@@ -25,21 +39,19 @@ class LettaRobloxClient:
         payload = {
             "name": f"{npc_type}_{int(time.time())}",
             "memory": {
-                "memory": {
-                    "human": {
-                        "value": memory["human"],
-                        "limit": 2000,
-                        "name": "player_info",
-                        "template": False,
-                        "label": "human"
-                    },
-                    "persona": {
-                        "value": memory["persona"],
-                        "limit": 2000,
-                        "name": "npc_persona",
-                        "template": False,
-                        "label": "persona"
-                    }
+                "human": {
+                    "value": memory["human"],
+                    "limit": 2000,
+                    "name": "player_info",
+                    "template": False,
+                    "label": "human"
+                },
+                "persona": {
+                    "value": memory["persona"],
+                    "limit": 2000,
+                    "name": "npc_persona",
+                    "template": False,
+                    "label": "persona"
                 },
                 "prompt_template": "{% for block in memory.values() %}<{{ block.label }}>\n{{ block.value }}\n</{{ block.label }}>{% endfor %}"
             },
@@ -74,16 +86,29 @@ class LettaRobloxClient:
         """Update agent memory blocks."""
         url = f"{self.base_url}/v1/agents/{agent_id}/memory"
         
+        # Build full memory structure
+        payload = {"memory": {}}
+        
         for block, value in memory_updates.items():
             if block not in ["human", "persona"]:
                 continue
             
-            response = requests.patch(
-                url,
-                json={block: value},
-                headers=self.headers
-            )
-            response.raise_for_status()
+            payload["memory"][block] = {
+                "value": value,
+                "limit": 2000,
+                "name": f"{block}_info",
+                "template": False,
+                "label": block
+            }
+        
+        # Update memory
+        response = requests.patch(url, json=payload, headers=self.headers)
+        response.raise_for_status()
+        
+        # Verify update (optional but helpful for debugging)
+        check = requests.get(url, headers=self.headers)
+        print(f"\nVerified memory update:")
+        print(json.dumps(check.json(), indent=2))
 
     def send_message(self, agent_id: str, message: str) -> str:
         """Send message to agent and get response."""
