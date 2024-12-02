@@ -57,8 +57,8 @@ pytest -sv  # Run tests
 ```
 letta-roblox-client/
 ├── README.md
-├── setup.py
 └── src/
+    ├── setup.py
     ├── letta_roblox/
     │   ├── __init__.py
     │   └── client.py
