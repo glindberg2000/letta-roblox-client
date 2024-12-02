@@ -13,6 +13,7 @@ import time
 import json
 import requests
 import pytest
+from letta_roblox.client import LettaRobloxClient
 
 @pytest.fixture
 def client():
@@ -380,3 +381,100 @@ def test_gpt4_agent_messaging(client, gpt4_agent):
             raise AssertionError("No response received")
         
         print("-" * 50)
+
+def test_roblox_client_wrapper():
+    """Test the Roblox-specific client wrapper.
+    
+    This test verifies our high-level client wrapper works:
+    1. Creates NPC agent with type-specific memory
+    2. Sends messages and gets responses
+    3. Cleans up properly
+    """
+    print("\n" + "="*50)
+    print("TESTING ROBLOX CLIENT WRAPPER")
+    print("="*50)
+    
+    # Initialize wrapper
+    client = LettaRobloxClient("http://localhost:8283")
+    
+    # Create merchant NPC
+    print("\n1. Creating merchant NPC...")
+    agent = client.create_agent(
+        npc_type="merchant",
+        initial_memory={
+            "human": "I am a new Roblox player looking to trade items.",
+            "persona": "I am a friendly merchant NPC who helps players trade items safely."
+        }
+    )
+    print(f"Agent created: {agent['id']}")
+    
+    try:
+        # Test message exchange
+        print("\n2. Testing conversation...")
+        user_message = "Hello! Can you help me trade my items?"
+        print(f"USER: {user_message}")
+        
+        response = client.send_message(agent['id'], user_message)
+        print(f"NPC: {response}")
+        
+        # Verify response is contextual
+        key_words = ['trade', 'merchant', 'items', 'safe']
+        found_words = [word for word in key_words if word in response.lower()]
+        print(f"\nContext words found: {', '.join(found_words)}")
+        assert len(found_words) > 0, "Response should contain context words"
+        
+        print("\n3. Testing memory update...")
+        client.update_memory(
+            agent['id'],
+            {
+                "human": "Player has rare sword to trade",
+                "persona": "I am a merchant interested in rare weapons"
+            }
+        )
+        print("Memory updated successfully")
+    
+    finally:
+        # Clean up
+        print("\n4. Cleaning up...")
+        client.delete_agent(agent['id'])
+        print("Agent deleted")
+    
+    print("\n" + "="*50)
+
+@pytest.mark.debug
+def test_roblox_client_wrapper():
+    """Test the Roblox-specific client wrapper."""
+    print("\n=== Testing Roblox Client ===")
+    
+    client = LettaRobloxClient("http://localhost:8283")
+    
+    # Create merchant NPC
+    print("\nCreating merchant NPC...")
+    agent = client.create_agent(
+        npc_type="merchant",
+        initial_memory={
+            "human": "I am a new Roblox player looking to trade items.",
+            "persona": "I am a friendly merchant NPC who helps players trade items safely."
+        }
+    )
+    print(f"Created agent: {agent['id']}")
+    
+    try:
+        # Send message
+        print("\nSending message...")
+        message = "Hello! Can you help me trade my items?"
+        print(f"USER: {message}")
+        
+        response = client.send_message(agent['id'], message)
+        print(f"NPC: {response}")
+        
+        # Verify response
+        key_words = ['trade', 'merchant', 'items']
+        found_words = [word for word in key_words if word in response.lower()]
+        print(f"\nFound context words: {', '.join(found_words)}")
+        assert len(found_words) > 0, "Response should contain context words"
+    
+    finally:
+        print("\nCleaning up...")
+        client.delete_agent(agent['id'])
+        print("Done!")
