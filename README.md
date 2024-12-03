@@ -1,6 +1,6 @@
 # Letta Roblox Client
 
-REST API client for integrating Letta AI agents with Roblox NPCs.
+A lightweight client for integrating Letta AI agents with Roblox NPCs.
 
 ## Installation
 
@@ -14,8 +14,9 @@ git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_ro
 pip install "git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src"
 ```
 
-## Quick Start
+## Usage
 
+### Python API
 ```python
 from letta_roblox.client import LettaRobloxClient
 
@@ -39,32 +40,42 @@ print(f"NPC: {response}")
 client.delete_agent(agent['id'])
 ```
 
-## Documentation
-- [Integration Guide](src/docs/letta_integration.md) - Detailed API usage
-- [Developer Notes](src/docs/NOTES_TO_DEVS.md) - Implementation details
+### Command Line Tool
+The package includes a command-line tool for managing agents:
+
+```bash
+# List all agents
+letta-manage list
+
+# Show detailed agent info
+letta-manage list -v
+
+# Get specific agent
+letta-manage get --id agent-123
+
+# Delete agent
+letta-manage delete --id agent-123
+
+# Delete all agents
+letta-manage delete-all
+```
 
 ## Development
 
 For contributors:
 ```bash
+# Clone repo
 git clone git@github.com:glindberg2000/letta-roblox-client.git
 cd letta-roblox-client
+
+# Install in development mode
+cd src
 pip install -e .
-pytest -sv  # Run tests
+
+# Run tests
+pytest -sv
 ```
 
-## Project Structure
-```
-letta-roblox-client/
-├── README.md
-└── src/
-    ├── setup.py
-    ├── letta_roblox/
-    │   ├── __init__.py
-    │   └── client.py
-    ├── tests/
-    │   └── test_letta.py
-    └── docs/
-        ├── letta_integration.md
-        └── NOTES_TO_DEVS.md
-```
+## Documentation
+- [Integration Guide](src/docs/letta_integration.md) - Detailed API usage
+- [Developer Notes](src/docs/NOTES_TO_DEVS.md) - Implementation details
