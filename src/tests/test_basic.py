@@ -10,7 +10,7 @@ def test_pip_server():
     client = LettaRobloxClient(base_url="http://localhost:8333")
     
     agent = client.create_agent(
-        npc_type="test",
+        name="test",
         memory=ChatMemory(
             human="Test human memory",
             persona="Test persona memory"
@@ -23,19 +23,36 @@ def test_pip_server():
     finally:
         client.delete_agent(agent['id'])
 
+@pytest.mark.pip
+def test_basic_agent(server_url):
+    """Test basic agent creation with pip-installed server."""
+    client = LettaRobloxClient(base_url=server_url)
+    
+    agent = client.create_agent(
+        name="test_merchant",
+        memory=ChatMemory(
+            human="Test human memory",
+            persona="Test persona memory"
+        )
+    )
+    
+    try:
+        assert agent is not None
+        assert 'id' in agent
+    finally:
+        client.delete_agent(agent['id'])
+
+@pytest.mark.pip
 def test_memory_get():
     """Test getting memory contents."""
     client = LettaRobloxClient()
     
-    # Create agent with specific memory
-    memory = ChatMemory(
-        human="I am a new player named Alex.",
-        persona="I am a friendly merchant named Sam."
-    )
-    
     agent = client.create_agent(
-        npc_type="merchant",
-        memory=memory
+        name="test_memory",
+        memory=ChatMemory(
+            human="I am a new player named Alex.",
+            persona="I am a friendly merchant named Sam."
+        )
     )
     
     try:
@@ -57,7 +74,7 @@ def test_memory_update():
     
     # Create agent
     agent = client.create_agent(
-        npc_type="merchant",
+        name="test_memory_update",
         memory=ChatMemory(
             human="Original human memory",
             persona="Original persona memory"
@@ -88,7 +105,7 @@ def test_send_message():
     
     # Create merchant NPC with specific personality
     agent = client.create_agent(
-        npc_type="merchant",
+        name="test_merchant",
         memory=ChatMemory(
             human="I am a new player looking to trade items.",
             persona="I am a friendly merchant who helps new players trade safely. I always verify items and give fair prices."
@@ -130,7 +147,7 @@ def test_free_agent(free_config):
     """Test with free endpoints."""
     client = LettaRobloxClient()
     agent = client.create_agent(
-        npc_type="test",
+        name="test_free_agent",
         memory=ChatMemory(
             human="I am a new player testing the free endpoint",
             persona="I am a test NPC using the free model"
@@ -153,7 +170,7 @@ def test_openai_agent(openai_config):
     
     client = LettaRobloxClient()
     agent = client.create_agent(
-        npc_type="test",
+        name="test_openai_agent",
         memory=ChatMemory(
             human="I am a player using the OpenAI endpoint",
             persona="I am a test NPC using GPT-4o-mini"
@@ -191,7 +208,7 @@ def test_docker_server():
     }
     
     agent = client.create_agent_docker(
-        npc_type="test",
+        name="test_docker_server",
         memory=memory
     )
     
@@ -203,5 +220,26 @@ def test_docker_server():
         memory_data = client.get_memory(agent['id'])
         assert memory_data['memory']['human']['value'] == "Test human"
         
+    finally:
+        client.delete_agent(agent['id'])
+
+@pytest.mark.pip
+def test_gpt4o_basic(gpt4o_config):
+    """Test GPT-4o-mini integration through Letta's API."""
+    client = LettaRobloxClient()
+    
+    agent = client.create_agent(
+        name="test_gpt4o",
+        memory=ChatMemory(
+            human="I am looking for rare items",
+            persona="I am an expert merchant specializing in rare collectibles"
+        ),
+        llm_config=gpt4o_config["llm"],
+        embedding_config=gpt4o_config["embedding"]
+    )
+    
+    try:
+        response = client.send_message(agent['id'], "What rare items do you have?")
+        assert response is not None
     finally:
         client.delete_agent(agent['id'])

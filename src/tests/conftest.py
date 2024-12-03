@@ -64,4 +64,23 @@ def openai_config(openai_key):
             embedding_dim=int(os.getenv('LETTA_EMBEDDING_DIM', '1536')),
             embedding_chunk_size=300
         )
+    }
+
+@pytest.fixture
+def gpt4o_config():
+    """Config for GPT-4o-mini."""
+    return {
+        "llm": LLMConfig(
+            model="gpt-4o-mini",
+            model_endpoint_type="openai",
+            model_endpoint="https://api.openai.com/v1",
+            context_window=128000
+        ),
+        "embedding": EmbeddingConfig(
+            embedding_endpoint_type="openai",
+            embedding_endpoint="https://api.openai.com/v1",
+            embedding_model="text-embedding-ada-002",
+            embedding_dim=1536,
+            embedding_chunk_size=300
+        )
     } 
