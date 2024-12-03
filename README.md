@@ -1,117 +1,118 @@
 # Letta Roblox Client
 
-A lightweight client for integrating Letta AI agents with Roblox NPCs.
+A lightweight client for managing Letta AI agents as Roblox NPCs.
 
-## Installation & Updates
-
-### New Installation
-
-1. Add to your project's requirements.txt:
-```
-git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src
-```
-
-2. Or install directly:
+## Installation
 ```bash
-pip install "git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src"
+pip install letta-roblox-client
 ```
 
-### Updating Existing Installation
+## Server Setup
+The client requires a running Letta server. Set up as a service:
 
-1. Update via pip:
 ```bash
-# Update to latest version
-pip install --upgrade "git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src"
+# Create service file
+sudo nano /etc/systemd/system/letta.service
 
-# Update to specific version
-pip install --upgrade "git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@v0.1.0#egg=letta_roblox&subdirectory=src"
-```
+[Unit]
+Description=Letta AI Server
+After=network.target
 
-2. Or update requirements.txt:
-```
-# Latest version
-git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src
+[Service]
+Type=simple
+User=your_user
+Environment=OPENAI_API_KEY=your_key_here
+Environment=OPENAI_BASE_URL=https://api.openai.com/v1
+WorkingDirectory=/path/to/letta-deployment
+ExecStart=/path/to/venv/bin/letta server --port 8333
+Restart=always
 
-# Specific version
-git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@v0.1.0#egg=letta_roblox&subdirectory=src
-```
+[Install]
+WantedBy=multi-user.target
 
-Then run:
-```bash
-pip install -r requirements.txt --upgrade
-```
-
-### Verifying Installation
-```bash
-# Check installed version
-pip show letta_roblox
-
-# Test CLI tool
-letta-manage --help
+# Enable and start
+sudo systemctl enable letta
+sudo systemctl start letta
 ```
 
 ## Usage
 
-### Python API
+### Basic Usage
 ```python
 from letta_roblox.client import LettaRobloxClient
+from letta import ChatMemory
 
-# Initialize client
-client = LettaRobloxClient("http://your-letta-server:8283")
+# Initialize client (defaults to http://localhost:8333)
+client = LettaRobloxClient()
 
-# Create merchant NPC
+# Create NPC with free model (default)
 agent = client.create_agent(
     npc_type="merchant",
-    initial_memory={
-        "human": "I am a new player who only has basic items.",
-        "persona": "I am a merchant who specializes in helping new players."
-    }
+    memory=ChatMemory(
+        human="I am a new player looking to trade",
+        persona="I am a friendly merchant who helps new traders"
+    )
+)
+
+# Create NPC with GPT-4o-mini
+agent = client.create_agent(
+    npc_type="merchant",
+    memory=ChatMemory(
+        human="I am looking for rare items",
+        persona="I am an expert merchant specializing in rare collectibles"
+    ),
+    llm_config=LLMConfig(
+        model="gpt-4o-mini",
+        model_endpoint_type="openai",
+        model_endpoint="https://api.openai.com/v1",
+        context_window=128000
+    )
 )
 
 # Send message
 response = client.send_message(agent['id'], "What items do you have?")
-print(f"NPC: {response}")
 
-# Clean up
+# Update memory
+client.update_memory(
+    agent['id'],
+    {
+        "human": "Player has completed 5 trades",
+        "persona": "I give bonuses to experienced traders"
+    }
+)
+
+# Cleanup
 client.delete_agent(agent['id'])
 ```
 
-### Command Line Tool
-The package includes a command-line tool for managing agents:
+### Configuration
+```python
+# Custom server
+client = LettaRobloxClient(base_url="http://your-server:8333")
 
-```bash
-# List all agents
-letta-manage list
-
-# Show detailed agent info
-letta-manage list -v
-
-# Get specific agent
-letta-manage get --id agent-123
-
-# Delete agent
-letta-manage delete --id agent-123
-
-# Delete all agents
-letta-manage delete-all
+# Environment variables
+LETTA_SERVER_URL=http://localhost:8333  # Server URL
+OPENAI_API_KEY=your_key_here           # For GPT-4o-mini
 ```
 
 ## Development
 
-For contributors:
 ```bash
 # Clone repo
-git clone git@github.com:glindberg2000/letta-roblox-client.git
+git clone <repo_url>
 cd letta-roblox-client
 
-# Install in development mode
+# Install dependencies
 cd src
 pip install -e .
 
 # Run tests
-pytest -sv
+pytest -sv tests/  # All tests
+pytest -sv tests/test_basic.py  # Basic tests
+pytest -sv tests/test_openai.py  # GPT-4o tests
 ```
 
 ## Documentation
-- [Integration Guide](src/docs/letta_integration.md) - Detailed API usage
-- [Developer Notes](src/docs/NOTES_TO_DEVS.md) - Implementation details
+- [API Reference](docs/API.md)
+- [Server Setup](docs/SERVER.md)
+- [Development Guide](docs/DEVELOPMENT.md)

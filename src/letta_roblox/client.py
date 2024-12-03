@@ -5,113 +5,103 @@ A lightweight client for managing Letta AI agents as Roblox NPCs.
 import json
 import time
 import requests
+import os
 from typing import Dict, Optional
+from letta import ChatMemory, EmbeddingConfig, LLMConfig, create_client
 
 class LettaRobloxClient:
-    """Client for managing Letta AI agents as Roblox NPCs."""
+    """Client for managing Letta AI agents as Roblox NPCs.
     
-    def __init__(self, base_url: str, headers: Optional[Dict] = None):
+    This client provides a simplified interface for:
+    1. Creating NPCs with specific roles
+    2. Managing NPC memory and personality
+    3. Handling player-NPC conversations
+    4. Automatic cleanup of resources
+    
+    Memory Structure:
+        The Letta API uses memory blocks for context:
+        - human: Information about the player/user
+        - persona: The NPC's personality and role
+        
+    Example:
+        client = LettaRobloxClient("http://localhost:8283")
+        agent = client.create_agent(
+            npc_type="merchant",
+            initial_memory={
+                "human": "Player is new to trading",
+                "persona": "I am a friendly merchant who helps new players trade safely"
+            }
+        )
+    """
+    
+    def __init__(self, base_url: str = "http://localhost:8333"):
         """Initialize client."""
         self.base_url = base_url.rstrip('/')
-        self.headers = headers or {'Content-Type': 'application/json'}
+        self.headers = {'Content-Type': 'application/json'}
+        self.client = create_client(base_url=self.base_url)
 
-    def create_agent(self, npc_type: str, initial_memory: Optional[Dict] = None) -> Dict:
-        """Create a new NPC agent.
+    def create_agent(self, npc_type: str, memory: ChatMemory, llm_config=None, embedding_config=None) -> Dict:
+        """Create a new NPC agent."""
+        client = create_client(base_url=self.base_url)
         
-        Args:
-            npc_type: Type of NPC (e.g. "merchant", "guard")
-            initial_memory: Optional initial memory blocks
-            
-        Example:
-            agent = client.create_agent(
-                npc_type="merchant",
-                initial_memory={
-                    "human": "I am a new player who only has basic items.",
-                    "persona": "I am a merchant who specializes in helping new players."
-                }
-            )
-        """
-        memory = initial_memory or {
-            "human": "New player",
-            "persona": f"I am a {npc_type} NPC"
-        }
-        
-        payload = {
-            "name": f"{npc_type}_{int(time.time())}",
-            "memory": {
-                "human": {
-                    "value": memory["human"],
-                    "limit": 2000,
-                    "name": "player_info",
-                    "template": False,
-                    "label": "human"
-                },
-                "persona": {
-                    "value": memory["persona"],
-                    "limit": 2000,
-                    "name": "npc_persona",
-                    "template": False,
-                    "label": "persona"
-                },
-                "prompt_template": "{% for block in memory.values() %}<{{ block.label }}>\n{{ block.value }}\n</{{ block.label }}>{% endfor %}"
-            },
-            "system": f"You are a {npc_type} NPC in a Roblox game. Stay in character at all times.",
-            "tools": ["send_message"],
-            "agent_type": "memgpt_agent",
-            "llm_config": {
-                "model": "letta-free",
-                "model_endpoint_type": "openai",
-                "model_endpoint": "https://inference.memgpt.ai",
-                "context_window": 16384,
-                "put_inner_thoughts_in_kwargs": True
-            },
-            "embedding_config": {
-                "embedding_endpoint_type": "hugging-face",
-                "embedding_endpoint": "https://embeddings.memgpt.ai",
-                "embedding_model": "letta-free",
-                "embedding_dim": 1024,
-                "embedding_chunk_size": 300
-            }
-        }
-        
-        response = requests.post(
-            f"{self.base_url}/v1/agents",
-            json=payload,
-            headers=self.headers
+        # Use provided configs or defaults
+        llm = llm_config or LLMConfig(
+            model="letta-free",
+            model_endpoint_type="openai",
+            model_endpoint="https://inference.memgpt.ai",
+            context_window=16384
         )
-        response.raise_for_status()
-        return response.json()
+        
+        embedding = embedding_config or EmbeddingConfig(
+            embedding_endpoint_type="hugging-face",
+            embedding_endpoint="https://embeddings.memgpt.ai",
+            embedding_model="letta-free",
+            embedding_dim=1024,
+            embedding_chunk_size=300
+        )
+        
+        agent_state = client.create_agent(
+            name=f"npc_{npc_type}_{int(time.time())}",
+            memory=memory,
+            llm_config=llm,
+            embedding_config=embedding
+        )
+        
+        return agent_state.model_dump()
 
     def update_memory(self, agent_id: str, memory_updates: Dict[str, str]) -> None:
-        """Update agent memory blocks."""
+        """Update agent memory blocks.
+        
+        Args:
+            agent_id: Agent ID to update
+            memory_updates: Dict with "human" and/or "persona" values to update
+        """
         url = f"{self.base_url}/v1/agents/{agent_id}/memory"
         
-        # Build full memory structure
-        payload = {"memory": {}}
+        # Send just the string values
+        payload = {
+            key: value
+            for key, value in memory_updates.items()
+            if key in ["human", "persona"]
+        }
         
-        for block, value in memory_updates.items():
-            if block not in ["human", "persona"]:
-                continue
-            
-            payload["memory"][block] = {
-                "value": value,
-                "limit": 2000,
-                "name": f"{block}_info",
-                "template": False,
-                "label": block
-            }
-        
-        # Update memory
         response = requests.patch(url, json=payload, headers=self.headers)
         response.raise_for_status()
-        
-        # Verify update (optional but helpful for debugging)
-        check = requests.get(url, headers=self.headers)
-        print(f"\nVerified memory update:")
-        print(json.dumps(check.json(), indent=2))
 
     def send_message(self, agent_id: str, message: str) -> str:
-        """Send message to agent and get response."""
+        """Send message to agent and get response.
+        
+        Args:
+            agent_id: Agent ID to message
+            message: Message text to send
+            
+        Returns:
+            NPC's response text
+            
+        Example:
+            response = client.send_message(agent_id, "What items do you have?")
+            print(f"NPC: {response}")
+        """
         url = f"{self.base_url}/v1/agents/{agent_id}/messages"
         
         payload = {
@@ -141,3 +131,34 @@ class LettaRobloxClient:
         url = f"{self.base_url}/v1/agents/{agent_id}"
         response = requests.delete(url, headers=self.headers)
         response.raise_for_status()
+
+    def get_memory(self, agent_id: str) -> Dict:
+        """Get raw memory structure for an agent."""
+        url = f"{self.base_url}/v1/agents/{agent_id}/memory"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+    def create_agent_docker(self, npc_type: str, memory: Dict) -> Dict:
+        """Create agent specifically for Docker server."""
+        client = create_client(base_url=self.base_url)
+        
+        agent_state = client.create_agent(
+            name=f"npc_{npc_type}_{int(time.time())}",
+            memory=memory,
+            llm_config=LLMConfig(
+                model="letta-free",
+                model_endpoint_type="openai",
+                model_endpoint="https://inference.memgpt.ai",
+                context_window=16384
+            ),
+            embedding_config=EmbeddingConfig(
+                embedding_endpoint_type="hugging-face",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_model="letta-free",
+                embedding_dim=1024,
+                embedding_chunk_size=300
+            )
+        )
+        
+        return agent_state.model_dump()
