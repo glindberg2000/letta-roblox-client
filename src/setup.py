@@ -8,6 +8,27 @@ setup(
         "requests>=2.31.0"
     ],
     python_requires=">=3.8",
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest"],
+    entry_points={
+        'console_scripts': [
+            'letta-manage=letta_roblox.tools.manage_agents:main',
+        ],
+    },
+    package_dir={"": "."},
+    include_package_data=True,
+    # Add these for better package info
+    author="Your Name",
+    author_email="your.email@example.com",
+    description="A lightweight client for integrating Letta AI agents with Roblox NPCs",
+    long_description=open("../README.md").read(),
+    long_description_content_type="text/markdown",
+    url="https://github.com/glindberg2000/letta-roblox-client",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+    ],
 ) 
