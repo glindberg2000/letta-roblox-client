@@ -8,7 +8,7 @@ This module tests the core functionality needed for Roblox NPC integration:
 
 Each test uses fixtures for setup and cleanup to ensure test isolation.
 """
-from letta import create_client
+from letta import create_client, ChatMemory, EmbeddingConfig, LLMConfig
 import time
 import json
 import requests
@@ -17,85 +17,44 @@ from letta_roblox.client import LettaRobloxClient
 
 @pytest.fixture
 def client():
-    """Create a test client for Letta API.
-    
-    Returns:
-        client: Configured Letta client pointing to local Docker instance
-    """
-    return create_client(base_url="http://localhost:8283")
+    """Create a test client for Letta API."""
+    return create_client(base_url="http://localhost:8333")
 
 @pytest.fixture
 def roblox_client():
     """Create a test client for Letta Roblox API."""
-    return LettaRobloxClient("http://localhost:8283")
+    return LettaRobloxClient("http://localhost:8333")
 
 @pytest.fixture
 def test_agent(roblox_client):
     """Create and manage a test agent lifecycle."""
     agent = roblox_client.create_agent(
         npc_type="merchant",
-        initial_memory={
-            "human": "Initial human info",
-            "persona": "Initial persona info"
-        }
+        memory=ChatMemory(
+            human="Initial human info",
+            persona="Initial persona info"
+        )
     )
     yield agent
-    roblox_client.delete_agent(agent['id'])
+    roblox_client.delete_agent(agent.id)
 
 @pytest.fixture
 def gpt4_agent(client):
     """Create and manage a GPT-4o-mini agent lifecycle."""
-    agent_name = f"gpt4_agent_{int(time.time())}"
-    url = f"{client.base_url}/v1/agents"
+    # Get configs first
+    llm_configs = client.list_llm_configs()
+    embedding_configs = client.list_embedding_configs()
     
-    payload = {
-        "name": agent_name,
-        "memory": {
-            "memory": {
-                "human": {
-                    "value": "Initial human info",
-                    "limit": 2000,
-                    "name": "player_info",
-                    "template": False,
-                    "label": "human"
-                },
-                "persona": {
-                    "value": "Initial persona info",
-                    "limit": 2000,
-                    "name": "npc_persona",
-                    "template": False,
-                    "label": "persona"
-                }
-            },
-            "prompt_template": "{% for block in memory.values() %}<{{ block.label }}>\n{{ block.value }}\n</{{ block.label }}>{% endfor %}"
+    agent = client.create_agent(
+        name=f"gpt4_agent_{int(time.time())}",
+        memory={
+            "human": "Initial human info",
+            "persona": "Initial persona info"
         },
-        # GPT-4o-mini configuration
-        "llm_config": {
-            "model": "gpt-4o-mini",
-            "model_endpoint_type": "openai",
-            "model_endpoint": "https://api.openai.com/v1",
-            "context_window": 128000,
-            "put_inner_thoughts_in_kwargs": True
-        },
-        "embedding_config": {
-            "embedding_endpoint_type": "openai",
-            "embedding_endpoint": "https://api.openai.com/v1",
-            "embedding_model": "text-embedding-ada-002",
-            "embedding_dim": 1536,
-            "embedding_chunk_size": 300
-        },
-        # Required for messaging
-        "system": "You are a high-end merchant NPC in a Roblox game. Stay in character at all times.",
-        "tools": ["send_message"],
-        "agent_type": "memgpt_agent"
-    }
-
-    response = requests.post(url, json=payload, headers=client.headers)
-    response.raise_for_status()
-    agent = response.json()
-    
+        embedding_config=embedding_configs[0],
+        llm_config=llm_configs[0]
+    )
     yield agent
-    
     client.delete_agent(agent['id'])
 
 def test_memory_updates(roblox_client, test_agent):
@@ -246,16 +205,16 @@ def test_roblox_client_wrapper():
     print("="*50)
     
     # Initialize wrapper
-    client = LettaRobloxClient("http://localhost:8283")
+    client = LettaRobloxClient("http://localhost:8333")
     
     # Create merchant NPC
     print("\n1. Creating merchant NPC...")
     agent = client.create_agent(
         npc_type="merchant",
-        initial_memory={
-            "human": "I am a new Roblox player looking to trade items.",
-            "persona": "I am a friendly merchant NPC who helps players trade items safely."
-        }
+        memory=ChatMemory(
+            human="I am a new Roblox player looking to trade items.",
+            persona="I am a friendly merchant NPC who helps players trade items safely."
+        )
     )
     print(f"Agent created: {agent['id']}")
     
@@ -297,16 +256,16 @@ def test_roblox_client_wrapper():
     """Test the Roblox-specific client wrapper."""
     print("\n=== Testing Roblox Client ===")
     
-    client = LettaRobloxClient("http://localhost:8283")
+    client = LettaRobloxClient("http://localhost:8333")
     
     # Create merchant NPC
     print("\nCreating merchant NPC...")
     agent = client.create_agent(
         npc_type="merchant",
-        initial_memory={
-            "human": "I am a new Roblox player looking to trade items.",
-            "persona": "I am a friendly merchant NPC who helps players trade items safely."
-        }
+        memory=ChatMemory(
+            human="I am a new Roblox player looking to trade items.",
+            persona="I am a friendly merchant NPC who helps players trade items safely."
+        )
     )
     print(f"Created agent: {agent['id']}")
     
@@ -334,15 +293,15 @@ def test_memory_influence():
     """Test that memory affects NPC responses."""
     print("\n=== Testing Memory Influence ===")
     
-    client = LettaRobloxClient("http://localhost:8283")
+    client = LettaRobloxClient("http://localhost:8333")
     
     # Create merchant NPC
     agent = client.create_agent(
         npc_type="merchant",
-        initial_memory={
-            "human": "I am a new player who only has basic items.",
-            "persona": "I am a merchant who specializes in helping new players."
-        }
+        memory=ChatMemory(
+            human="I am a new player who only has basic items.",
+            persona="I am a merchant who specializes in helping new players."
+        )
     )
     
     try:
@@ -384,3 +343,37 @@ def test_memory_influence():
         
     finally:
         client.delete_agent(agent['id'])
+
+def test_memory_structure():
+    """Test actual memory structure from API."""
+    client = create_client(base_url="http://localhost:8333")
+    
+    agent_state = client.create_agent(
+        name=f"test_agent_{int(time.time())}",
+        memory=ChatMemory(
+            human="Test human memory",
+            persona="Test persona memory"
+        ),
+        llm_config=LLMConfig(
+            model="letta-free",
+            model_endpoint_type="openai",
+            model_endpoint="https://inference.memgpt.ai",
+            context_window=16384
+        ),
+        embedding_config=EmbeddingConfig(
+            embedding_endpoint_type="hugging-face",
+            embedding_endpoint="https://embeddings.memgpt.ai",
+            embedding_model="letta-free",
+            embedding_dim=1024,
+            embedding_chunk_size=300
+        )
+    )
+    
+    try:
+        print(f"Created agent: {agent_state.name} with ID {str(agent_state.id)}")
+        memory = client.get_core_memory(agent_state.id)
+        print("\nMemory Structure:")
+        print(json.dumps(memory.dict(), indent=2))
+    finally:
+        client.delete_agent(agent_id=agent_state.id)
+        print(f"Deleted agent: {agent_state.name}")

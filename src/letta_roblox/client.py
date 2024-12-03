@@ -7,7 +7,12 @@ import time
 import requests
 import os
 from typing import Dict, Optional, List
-from letta import ChatMemory, EmbeddingConfig, LLMConfig, create_client
+from letta import (
+    ChatMemory,
+    LLMConfig,
+    EmbeddingConfig,
+    create_client
+)
 
 class LettaRobloxClient:
     """Client for managing Letta AI agents as Roblox NPCs.

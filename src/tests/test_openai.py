@@ -22,13 +22,13 @@ def gpt4o_config():
     }
 
 def test_gpt4o_basic(gpt4o_config):
-    """Test basic agent with GPT-4o-mini."""
+    """Test with GPT-4o-mini."""
     client = LettaRobloxClient()
     
     agent = client.create_agent(
-        npc_type="merchant",
+        name="test_gpt4o",
         memory=ChatMemory(
-            human="I am a player looking to trade rare items",
+            human="I am looking for rare items",
             persona="I am an expert merchant specializing in rare collectibles"
         ),
         llm_config=gpt4o_config["llm"],
