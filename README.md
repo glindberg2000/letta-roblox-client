@@ -2,7 +2,9 @@
 
 A lightweight client for integrating Letta AI agents with Roblox NPCs.
 
-## Installation
+## Installation & Updates
+
+### New Installation
 
 1. Add to your project's requirements.txt:
 ```
@@ -12,6 +14,40 @@ git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_ro
 2. Or install directly:
 ```bash
 pip install "git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src"
+```
+
+### Updating Existing Installation
+
+1. Update via pip:
+```bash
+# Update to latest version
+pip install --upgrade "git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src"
+
+# Update to specific version
+pip install --upgrade "git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@v0.1.0#egg=letta_roblox&subdirectory=src"
+```
+
+2. Or update requirements.txt:
+```
+# Latest version
+git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@main#egg=letta_roblox&subdirectory=src
+
+# Specific version
+git+ssh://git@github.com/glindberg2000/letta-roblox-client.git@v0.1.0#egg=letta_roblox&subdirectory=src
+```
+
+Then run:
+```bash
+pip install -r requirements.txt --upgrade
+```
+
+### Verifying Installation
+```bash
+# Check installed version
+pip show letta_roblox
+
+# Test CLI tool
+letta-manage --help
 ```
 
 ## Usage
