@@ -15,39 +15,38 @@ from letta import (
 )
 
 class LettaRobloxClient:
-    """Client for managing Letta AI agents as Roblox NPCs.
+    """Client for managing Letta AI agents as Roblox NPCs."""
     
-    Supports both free and OpenAI endpoints through Letta's API.
-    
-    Example:
-        # Using free endpoint (default)
-        client = LettaRobloxClient()
-        agent = client.create_agent(
-            name="merchant",
-            memory=ChatMemory(
-                human="Player info here",
-                persona="NPC personality here"
-            )
-        )
+    def __init__(
+        self, 
+        base_url: str = "http://localhost:8333",
+        skip_init: bool = True  # Skip initialization by default
+    ):
+        """Initialize client.
         
-        # Using GPT-4o-mini
-        agent = client.create_agent(
-            name="expert_merchant",
-            memory=ChatMemory(...),
-            llm_config=LLMConfig(
-                model="gpt-4o-mini",
-                model_endpoint_type="openai",
-                model_endpoint="https://api.openai.com/v1",
-                context_window=128000
-            )
-        )
-    """
-    
-    def __init__(self, base_url: str = "http://localhost:8333"):
-        """Initialize client."""
+        Args:
+            base_url: Server URL
+            skip_init: Skip database/config initialization
+        """
         self.base_url = base_url.rstrip('/')
         self.headers = {'Content-Type': 'application/json'}
-        self.client = create_client(base_url=self.base_url)
+        
+        # Lazy initialization
+        self._client = None
+        self._skip_init = skip_init
+    
+    @property
+    def client(self):
+        """Lazy initialize client only when needed."""
+        if self._client is None:
+            if self._skip_init:
+                # Use direct HTTP calls
+                self._client = self  # Use our own methods
+            else:
+                # Full initialization
+                from letta import create_client
+                self._client = create_client(base_url=self.base_url)
+        return self._client
 
     def create_agent(
         self, 
@@ -73,35 +72,15 @@ class LettaRobloxClient:
         Returns:
             Dict containing agent state including 'id'
         """
-        client = create_client(base_url=self.base_url)
-        
-        # Use provided configs or defaults
-        llm = llm_config or LLMConfig(
-            model="letta-free",
-            model_endpoint_type="openai",
-            model_endpoint="https://inference.memgpt.ai",
-            context_window=16384
-        )
-        
-        embedding = embedding_config or EmbeddingConfig(
-            embedding_endpoint_type="hugging-face",
-            embedding_endpoint="https://embeddings.memgpt.ai",
-            embedding_model="letta-free",
-            embedding_dim=1024,
-            embedding_chunk_size=300
-        )
-        
-        agent_state = client.create_agent(
+        return self.client.create_agent(
             name=name,
             memory=memory,
-            llm_config=llm,
-            embedding_config=embedding,
+            llm_config=llm_config,
+            embedding_config=embedding_config,
             system=system,
             include_base_tools=include_base_tools,
             tools=tools
         )
-        
-        return agent_state.model_dump()
 
     def update_memory(self, agent_id: str, memory_updates: Dict[str, str]) -> None:
         """Update agent memory blocks.
@@ -196,3 +175,28 @@ class LettaRobloxClient:
         )
         
         return agent_state.model_dump()
+
+    def list_agents(self) -> List[Dict]:
+        """List all agents."""
+        url = f"{self.base_url}/v1/agents"
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+    def delete_all_agents(self) -> None:
+        """Delete all agents.
+        
+        Example:
+            client = LettaRobloxClient()
+            client.delete_all_agents()  # Cleanup everything
+        """
+        # Get all agents
+        agents = self.list_agents()
+        
+        # Delete each agent
+        for agent in agents:
+            try:
+                self.delete_agent(agent['id'])
+                print(f"Deleted agent {agent['id']}")
+            except Exception as e:
+                print(f"Failed to delete agent {agent['id']}: {e}")
