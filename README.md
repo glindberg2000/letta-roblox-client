@@ -3,116 +3,88 @@
 A lightweight client for managing Letta AI agents as Roblox NPCs.
 
 ## Installation
-```bash
-pip install letta-roblox-client
-```
-
-## Server Setup
-The client requires a running Letta server. Set up as a service:
 
 ```bash
-# Create service file
-sudo nano /etc/systemd/system/letta.service
-
-[Unit]
-Description=Letta AI Server
-After=network.target
-
-[Service]
-Type=simple
-User=your_user
-Environment=OPENAI_API_KEY=your_key_here
-Environment=OPENAI_BASE_URL=https://api.openai.com/v1
-WorkingDirectory=/path/to/letta-deployment
-ExecStart=/path/to/venv/bin/letta server --port 8333
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-# Enable and start
-sudo systemctl enable letta
-sudo systemctl start letta
+pip install letta-roblox
 ```
 
-## Usage
+## Server Types
+The client supports two server types:
 
-### Basic Usage
+### Pip Server (8333)
+
 ```python
-from letta_roblox.client import LettaRobloxClient
+client = LettaRobloxClient(
+    host="localhost",
+    port=8333,
+    server_type="pip"  # Default
+)
+```
+- Uses friendly agent names
+- Accepts full ChatMemory structure
+- Local timestamps
+
+### Docker Server (8283)
+
+```python
+client = LettaRobloxClient(
+    host="localhost",
+    port=8283,
+    server_type="docker"
+)
+```
+- Uses timestamp-based names
+- Requires simpler memory structure
+- UTC timestamps
+
+## Usage Examples
+
+### Create Agent
+
+```python
 from letta import ChatMemory
+from letta_roblox.client import LettaRobloxClient
 
-# Initialize client (defaults to http://localhost:8333)
-client = LettaRobloxClient()
-
-# Create NPC with free model (default)
+# Works with both servers
+client = LettaRobloxClient(port=8333)  # or port=8283
 agent = client.create_agent(
-    npc_type="merchant",
     memory=ChatMemory(
-        human="I am a new player looking to trade",
-        persona="I am a friendly merchant who helps new traders"
+        human="Player info",
+        persona="NPC personality"
     )
 )
-
-# Create NPC with GPT-4o-mini
-agent = client.create_agent(
-    npc_type="merchant",
-    memory=ChatMemory(
-        human="I am looking for rare items",
-        persona="I am an expert merchant specializing in rare collectibles"
-    ),
-    llm_config=LLMConfig(
-        model="gpt-4o-mini",
-        model_endpoint_type="openai",
-        model_endpoint="https://api.openai.com/v1",
-        context_window=128000
-    )
-)
-
-# Send message
-response = client.send_message(agent['id'], "What items do you have?")
-
-# Update memory
-client.update_memory(
-    agent['id'],
-    {
-        "human": "Player has completed 5 trades",
-        "persona": "I give bonuses to experienced traders"
-    }
-)
-
-# Cleanup
-client.delete_agent(agent['id'])
 ```
 
-### Configuration
-```python
-# Custom server
-client = LettaRobloxClient(base_url="http://your-server:8333")
-
-# Environment variables
-LETTA_SERVER_URL=http://localhost:8333  # Server URL
-OPENAI_API_KEY=your_key_here           # For GPT-4o-mini
-```
-
-## Development
+### Command Line Tool
 
 ```bash
-# Clone repo
-git clone <repo_url>
-cd letta-roblox-client
+# List agents
+letta-manage --host localhost --port 8333 list
 
-# Install dependencies
-cd src
-pip install -e .
+# Get agent details
+letta-manage --host localhost --port 8333 get --id <agent-id>
 
-# Run tests
-pytest -sv tests/  # All tests
-pytest -sv tests/test_basic.py  # Basic tests
-pytest -sv tests/test_openai.py  # GPT-4o tests
+# Delete agent
+letta-manage --host localhost --port 8333 delete --id <agent-id>
 ```
 
-## Documentation
-- [API Reference](docs/API.md)
-- [Server Setup](docs/SERVER.md)
-- [Development Guide](docs/DEVELOPMENT.md)
+## Breaking Changes
+Version 0.2.0:
+- Changed server URL handling to use host/port
+- Added explicit server_type parameter
+- Removed deprecated URL format
+
+## Migration Guide
+From 0.1.x:
+
+```python
+# Old
+client = LettaRobloxClient("http://localhost:8333")
+
+# New
+client = LettaRobloxClient(
+    host="localhost",
+    port=8333,
+    server_type="pip"  # or "docker"
+)
+```

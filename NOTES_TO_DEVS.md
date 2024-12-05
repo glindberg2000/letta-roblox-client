@@ -172,3 +172,207 @@ For questions:
    - Memory not updating: Check memory structure
    - Agent not responding: Verify message format
    - Server errors: Check environment variables
+
+## Package Structure
+
+1. Dependencies
+   ```
+   letta-roblox-client
+   ├── requires letta (core package)
+   │   ├── ChatMemory
+   │   ├── LLMConfig
+   │   ├── EmbeddingConfig
+   │   └── create_client
+   │
+   └── provides
+       ├── LettaRobloxClient
+       └── tools/
+   ```
+
+2. Import Structure
+   ```python
+   # Core classes from letta
+   from letta import (
+       ChatMemory,     # Memory management
+       LLMConfig,      # LLM configuration
+       EmbeddingConfig # Embedding configuration
+   )
+   
+   # Our client
+   from letta_roblox.client import LettaRobloxClient
+   ```
+
+3. Version Requirements
+   ```
+   letta >= 0.5.5          # For ChatMemory and configs
+   requests >= 2.31.0      # For API calls
+   python-dotenv >= 1.0.0  # For environment handling
+   pytest >= 8.0.0         # For testing
+   ```
+
+4. Installation Flow
+   ```bash
+   # 1. Install core package
+   pip install letta>=0.5.5
+   
+   # 2. Install our client
+   pip install letta-roblox-client
+   
+   # 3. Verify installation
+   python -c "from letta import ChatMemory; from letta_roblox.client import LettaRobloxClient"
+   ```
+
+5. Development Setup
+   ```bash
+   # 1. Clone repo
+   git clone <repo>
+   cd letta-roblox-client
+   
+   # 2. Create venv
+   python -m venv venv
+   source venv/bin/activate
+   
+   # 3. Install dependencies
+   pip install letta>=0.5.5
+   pip install -e src/
+   
+   # 4. Run tests
+   cd src/
+   pytest -sv tests/
+   ```
+
+6. Common Issues
+   - ModuleNotFoundError for ChatMemory: Install letta package
+   - ImportError for LLMConfig: Update letta to >= 0.5.5
+   - Missing create_client: Check letta installation
+   - Memory structure errors: Use ChatMemory from letta, not dict
+
+### Initialization
+The client now supports different initialization modes:
+
+1. API-Only Mode (Default)
+   - No database initialization
+   - No config loading
+   - Minimal side effects
+   - Suitable for most Roblox usage
+
+2. Full Mode
+   - Initializes database
+   - Loads config
+   - Creates ~/.letta/
+   - Needed for advanced features
+
+Choose based on your needs:
+```python
+# API calls only
+client = LettaRobloxClient()  # skip_init=True by default
+
+# Full features
+client = LettaRobloxClient(skip_init=False)
+```
+
+
+🔍 **Letta Docker Endpoint Memory Issue**
+
+Hey team! After extensive testing of the Letta client, we've discovered some important differences between the pip-installed server (8333) and Docker endpoint (8283):
+
+### What Works
+✅ Pip-installed server (8333):
+```python
+from letta import ChatMemory
+client = LettaRobloxClient("http://localhost:8333")
+
+# This works great!
+agent = client.create_agent(
+    name="merchant",
+    memory=ChatMemory(
+        human="Player info",
+        persona="NPC personality"
+    )
+)
+```
+
+### What Doesn't Work
+❌ Docker endpoint (8283):
+- Rejects the standard ChatMemory structure
+- Returns 422 errors on memory creation
+- Different memory validation rules
+
+### Recommendation
+For now, we suggest:
+1. Use pip-installed server (8333) for development and production
+2. Set up as systemd service for stability
+3. Skip Docker endpoint until memory structure issues are resolved
+
+### Service Setup
+```bash
+sudo nano /etc/systemd/system/letta.service
+
+[Unit]
+Description=Letta AI Server
+After=network.target
+
+[Service]
+Type=simple
+User=your_user
+Environment=OPENAI_API_KEY=your_key
+WorkingDirectory=/path/to/letta
+ExecStart=/path/to/venv/bin/letta server --port 8333
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+All tests are passing on the pip-installed server, and we've updated the client to default to port 8333. 🚀
+
+Let me know if you need help migrating from Docker to the pip version!
+
+#letta #development #bugfix
+
+# Server Differences
+
+## Memory Structure
+We've discovered important differences between pip-installed and Docker servers:
+
+1. Pip Server (8333)
+   ```python
+   # Accepts ChatMemory with extra fields
+   memory = {
+     "memory": {
+       "human": {
+         "value": "...",
+         "limit": 2000,
+         "is_template": false,
+         "organization_id": null,
+         "created_by_id": null,
+         "last_updated_by_id": null
+       }
+     }
+   }
+   ```
+
+2. Docker Server (8283)
+   ```python
+   # Requires minimal fields
+   memory = {
+     "memory": {
+       "human": {
+         "value": "...",
+         "limit": 2000,
+         "template": false,
+         "user_id": null
+       }
+     }
+   }
+   ```
+
+## Other Differences
+- Agent Names: Pip uses friendly names, Docker accepts custom names
+- Timestamps: Docker uses UTC (Z suffix), Pip uses local time
+- Validation: Docker is stricter about extra fields
+
+## Best Practices
+1. Use server-appropriate memory format
+2. Generate unique names for Docker agents
+3. Handle both timestamp formats

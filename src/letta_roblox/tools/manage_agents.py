@@ -10,43 +10,22 @@ import requests
 from letta_roblox.client import LettaRobloxClient
 
 class AgentManager:
-    def __init__(self, server_url: str = "http://localhost:8283"):
-        self.client = LettaRobloxClient(server_url)
-        
+    def __init__(self, client: LettaRobloxClient):
+        """Initialize with a LettaRobloxClient."""
+        self.client = client
+    
     def check_server(self) -> bool:
-        """Verify Letta server is running."""
+        """Verify server is running."""
         try:
-            # Try health endpoint first
-            try:
-                response = requests.get(f"{self.client.base_url}/health", timeout=5)
-                response.raise_for_status()
-                print("✓ Letta server is running (health check)")
+            response = requests.get(f"{self.client.base_url}/v1/health")
+            if response.status_code == 200:
+                print("✓ Letta server is running")
                 return True
-            except requests.exceptions.RequestException:
-                # If health endpoint fails, try listing agents
-                response = requests.get(
-                    f"{self.client.base_url}/v1/agents",
-                    headers=self.client.headers
-                )
-                response.raise_for_status()
-                print("✓ Letta server is running (API check)")
-                return True
-            
-        except requests.ConnectionError:
-            print("\n✗ Error: Could not connect to Letta server")
-            print(f"  URL: {self.client.base_url}")
-            print("\nTroubleshooting steps:")
-            print("  1. Check if Docker is running:")
-            print("     $ docker ps | grep letta")
-            print("  2. Check server logs:")
-            print("     $ docker logs letta")
-            print("  3. Try accessing directly:")
-            print(f"     $ curl {self.client.base_url}/v1/agents")
+            print(f"✗ Server not healthy: {response.status_code}")
             return False
-        except Exception as e:
-            print(f"\n✗ Error: {str(e)}")
-            print(f"  Server URL: {self.client.base_url}")
-            print("  Headers:", self.client.headers)
+        except requests.ConnectionError:
+            print(f"\n✗ Error: Could not connect to Letta server")
+            print(f"  URL: {self.client.base_url}")
             return False
 
     def list_agents(self, verbose: bool = False) -> List[Dict]:
@@ -144,27 +123,33 @@ class AgentManager:
 
 def main():
     parser = argparse.ArgumentParser(
-        prog='letta-manage',  # Use correct program name
+        prog='letta-manage',
         description='Manage Letta agents',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   List all agents:
-    letta-manage list
+    letta-manage --host localhost --port 8333 list
     
   List agents with memory details:
-    letta-manage list --verbose
+    letta-manage --host localhost --port 8283 list --verbose
     
   Get specific agent:
-    letta-manage get --id agent-123
+    letta-manage --host localhost --port 8333 get --id agent-123
     
   Delete agent:
-    letta-manage delete --id agent-123
+    letta-manage --host localhost --port 8283 delete --id agent-123
     
   Delete all agents:
-    letta-manage delete-all
+    letta-manage --host localhost --port 8333 delete-all
         """
     )
+    
+    # Global options
+    parser.add_argument('--host', default='localhost',
+                      help='Server hostname (default: localhost)')
+    parser.add_argument('--port', type=int, default=8333,
+                      help='Server port (default: 8333)')
     
     # Add subparsers for commands
     subparsers = parser.add_subparsers(dest='action', required=True)
@@ -187,13 +172,16 @@ Examples:
     # Delete-all command
     subparsers.add_parser('delete-all', help='Delete all agents')
     
-    # Global options
-    parser.add_argument('--server', default='http://localhost:8283',
-                      help='Letta server URL')
-    
     args = parser.parse_args()
     
-    manager = AgentManager(args.server)
+    # Create client with host and port
+    client = LettaRobloxClient(
+        host=args.host,
+        port=args.port,
+        server_type="pip" if args.port == 8333 else "docker"
+    )
+    
+    manager = AgentManager(client)
     
     if not manager.check_server():
         sys.exit(1)
